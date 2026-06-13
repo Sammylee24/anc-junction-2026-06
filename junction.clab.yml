@@ -1,0 +1,127 @@
+name: junction-2026-06
+
+mgmt:
+  network: clab-mgmt-junction
+  ipv4-subnet: 172.31.34.0/24
+  ipv6-subnet: fd00:31:34::/64
+
+topology:
+  nodes:
+    ISP-R:
+      kind: cisco_iol
+      image: adebayyo/cisco_iol:17.16.01a
+      mgmt-ipv4: 172.31.34.11
+      cpu: 0.20
+      memory: 256M
+      binds:
+        - configs/ISP-R.conf:/config.txt
+
+    JUN-R1:
+      kind: juniper_vjunosevolved
+      image: adebayyo/juniper_vjunosevolved:25.4R1.13-EVO
+      mgmt-ipv4: 172.31.34.12
+
+    CORE-R1:
+      kind: cisco_iol
+      image: adebayyo/cisco_iol:17.16.01a
+      mgmt-ipv4: 172.31.34.13
+      cpu: 0.20
+      memory: 256M
+      binds:
+        - configs/CORE-R1.conf:/config.txt
+
+    BR-R1:
+      kind: cisco_iol
+      image: adebayyo/cisco_iol:17.16.01a
+      mgmt-ipv4: 172.31.34.14
+      cpu: 0.20
+      memory: 256M
+      binds:
+        - configs/BR-R1.conf:/config.txt
+
+    BR-R2:
+      kind: cisco_iol
+      image: adebayyo/cisco_iol:17.16.01a
+      mgmt-ipv4: 172.31.34.15
+      cpu: 0.20
+      memory: 256M
+      binds:
+        - configs/BR-R2.conf:/config.txt
+
+    DIST-SW:
+      kind: cisco_iol
+      image: adebayyo/cisco_iol:L2-17.16.01a
+      type: l2
+      mgmt-ipv4: 172.31.34.21
+      cpu: 0.20
+      memory: 256M
+      binds:
+        - configs/DIST-SW.conf:/config.txt
+
+    ACC-SW1:
+      kind: cisco_iol
+      image: adebayyo/cisco_iol:L2-17.16.01a
+      type: l2
+      mgmt-ipv4: 172.31.34.22
+      cpu: 0.20
+      memory: 256M
+      binds:
+        - configs/ACC-SW1.conf:/config.txt
+
+    PC1:
+      kind: linux
+      image: nicolaka/netshoot
+      mgmt-ipv4: 172.31.34.31
+      cpu: 0.20
+      memory: 64M
+      exec:
+        - "ip link set eth1 up"
+        - "ssh-keygen -A"
+        - "sh -c 'echo PermitRootLogin yes >> /etc/ssh/sshd_config'"
+        - "sh -c 'echo PasswordAuthentication yes >> /etc/ssh/sshd_config'"
+        - "sh -c 'echo root:admin | chpasswd'"
+        - "/usr/sbin/sshd"
+        - "sh -c 'ip route del default dev eth0 2>/dev/null; ip route add default via 172.31.34.1 dev eth0 metric 2000'"
+        - "sh -c 'ip addr add 10.10.10.10/24 dev eth1 || true'"
+        - "sh -c 'ip route add default via 10.10.10.1 dev eth1 metric 100 || true'"
+
+  links:
+    # ISP-R <-> JUN-R1  (203.0.113.0/30)
+    - endpoints:
+        - ISP-R:Ethernet0/1
+        - JUN-R1:et-0/0/0
+
+    # JUN-R1 <-> CORE-R1  (10.0.12.0/30)
+    - endpoints:
+        - JUN-R1:et-0/0/1
+        - CORE-R1:Ethernet0/1
+
+    # CORE-R1 <-> BR-R1  (10.0.13.0/30)
+    - endpoints:
+        - CORE-R1:Ethernet0/2
+        - BR-R1:Ethernet0/1
+
+    # CORE-R1 <-> BR-R2  (10.0.14.0/30)
+    - endpoints:
+        - CORE-R1:Ethernet0/3
+        - BR-R2:Ethernet0/1
+
+    # BR-R1 <-> DIST-SW (VLAN trunk)
+    - endpoints:
+        - BR-R1:Ethernet0/2
+        - DIST-SW:Ethernet0/1
+
+    # BR-R2 <-> DIST-SW (VLAN trunk)
+    - endpoints:
+        - BR-R2:Ethernet0/2
+        - DIST-SW:Ethernet0/2
+
+    # DIST-SW <-> ACC-SW1 (trunk)
+    - endpoints:
+        - DIST-SW:Ethernet0/3
+        - ACC-SW1:Ethernet0/1
+
+    # ACC-SW1 <-> PC1
+    - endpoints:
+        - ACC-SW1:Ethernet0/2
+        - PC1:eth1
