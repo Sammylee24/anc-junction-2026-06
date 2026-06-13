@@ -211,7 +211,7 @@ deploy_lab() {
 
 clean_known_hosts() {
     local known_hosts="$HOME/.ssh/known_hosts"
-    [ -f "$known_hosts" ] || return
+    [ -f "$known_hosts" ] || return 0
     local ips=(
         172.31.34.11 172.31.34.12 172.31.34.13
         172.31.34.14 172.31.34.15
